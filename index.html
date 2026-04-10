@@ -100,7 +100,7 @@
             margin-top: 15px;
             font-size: 14px;
         }
-        .confirm-btn {
+        .paid-btn {
             background: #28a745;
             color: white;
             border: none;
@@ -110,6 +110,21 @@
             cursor: pointer;
             margin-top: 20px;
             width: 100%;
+        }
+        .waiting-section {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #e7f3ff;
+            border-radius: 10px;
+            border: 2px solid #2196F3;
+        }
+        .waiting-section.active { display: block; }
+        .countdown {
+            font-size: 48px;
+            color: #2196F3;
+            font-weight: bold;
+            margin: 15px 0;
         }
         .download-section {
             display: none;
@@ -202,13 +217,22 @@
                 <img id="qrImage" src="" alt="收款码">
             </div>
             <div class="payment-note">
-                扫码付款后，点击下方按钮即可自动获取下载链接
+                请使用微信扫码支付，付款后点击下方按钮
             </div>
-            <button class="confirm-btn" id="confirmBtn" onclick="confirmPayment()">我已完成付款，立即获取产品</button>
+            
+            <button class="paid-btn" id="paidBtn" onclick="clickPaid()">我已付款</button>
+            
+            <div class="waiting-section" id="waitingSection">
+                <h4>⏳ 等待发货中...</h4>
+                <div class="countdown" id="countdown">5:00</div>
+                <p style="color:#666;font-size:14px;">系统正在核实付款信息，<br>5分钟后自动发放产品下载链接</p>
+                <p style="color:#999;font-size:12px;margin-top:10px;">请保留付款凭证</p>
+            </div>
             
             <div class="download-section" id="downloadSection">
-                <h4>付款成功！请下载您的产品：</h4>
+                <h4>✅ 付款成功！请下载您的产品：</h4>
                 <div id="downloadLinks"></div>
+                <p style="margin-top:10px;color:#155724;font-size:14px;">请尽快保存，链接有效期30天</p>
             </div>
             
             <button class="buy-btn" style="margin-top:20px;background:#666;" onclick="closePayment()">关闭</button>
@@ -216,49 +240,65 @@
     </div>
 
     <script>
-        // 收款码图片 - 使用外部图片URL
         const QR_CODE_URL = 'https://raw.githubusercontent.com/tinghtest/zhihui-cangku/main/wechat-pay.jpg';
         
         const products = {
-            1: { 
-                name: '自动化文案模板', 
-                price: '¥9.9',
-                file: 'https://github.com/tinghtest/zhihui-cangku/raw/main/products/1-%E6%96%87%E6%A1%88%E6%A8%A1%E6%9D%BF.txt'
-            },
-            2: { 
-                name: '电商运营表格', 
-                price: '¥19.9',
-                file: 'https://github.com/tinghtest/zhihui-cangku/raw/main/products/2-%E7%94%B5%E5%95%86%E8%A1%A8%E6%A0%BC.txt'
-            },
-            3: { 
-                name: '私域引流话术库', 
-                price: '¥29.9',
-                file: 'https://github.com/tinghtest/zhihui-cangku/raw/main/products/3-%E8%AF%9D%E6%9C%AF%E5%BA%93.txt'
-            }
+            1: { name: '自动化文案模板', price: '¥9.9', file: 'products/1-文案模板.txt' },
+            2: { name: '电商运营表格', price: '¥19.9', file: 'products/2-电商表格.txt' },
+            3: { name: '私域引流话术库', price: '¥29.9', file: 'products/3-话术库.txt' }
         };
 
         let currentProduct = null;
+        let countdownInterval = null;
 
         function showPayment(productId) {
             currentProduct = products[productId];
             document.getElementById('modalTitle').innerText = '请支付 ' + currentProduct.price + ' - ' + currentProduct.name;
             document.getElementById('qrImage').src = QR_CODE_URL + '?t=' + Date.now();
+            
+            // 重置状态
+            document.getElementById('paidBtn').style.display = 'block';
+            document.getElementById('waitingSection').classList.remove('active');
             document.getElementById('downloadSection').classList.remove('active');
-            document.getElementById('confirmBtn').style.display = 'block';
+            
             document.getElementById('paymentModal').classList.add('active');
         }
 
-        function confirmPayment() {
+        function clickPaid() {
+            // 隐藏付款按钮，显示等待
+            document.getElementById('paidBtn').style.display = 'none';
+            document.getElementById('waitingSection').classList.add('active');
+            
+            // 开始5分钟倒计时
+            let seconds = 300; // 5分钟
+            const countdownEl = document.getElementById('countdown');
+            
+            countdownInterval = setInterval(() => {
+                seconds--;
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                countdownEl.innerText = mins + ':' + (secs < 10 ? '0' : '') + secs;
+                
+                if (seconds <= 0) {
+                    clearInterval(countdownInterval);
+                    showDownload();
+                }
+            }, 1000);
+        }
+
+        function showDownload() {
             if (!currentProduct) return;
-            document.getElementById('confirmBtn').style.display = 'none';
+            document.getElementById('waitingSection').classList.remove('active');
             document.getElementById('downloadSection').classList.add('active');
+            
+            const baseUrl = 'https://raw.githubusercontent.com/tinghtest/zhihui-cangku/main/';
             document.getElementById('downloadLinks').innerHTML = 
-                '<a href="' + currentProduct.file + '" class="download-link" download>点击下载 ' + currentProduct.name + '</a>' +
-                '<p style="margin-top:10px;color:#155724;font-size:14px;">如果下载失败，请复制链接到浏览器打开</p>';
+                '<a href="' + baseUrl + currentProduct.file + '" class="download-link" download>点击下载 ' + currentProduct.name + '</a>';
         }
 
         function closePayment() {
             document.getElementById('paymentModal').classList.remove('active');
+            if (countdownInterval) clearInterval(countdownInterval);
             currentProduct = null;
         }
 
